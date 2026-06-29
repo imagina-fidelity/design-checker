@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { auth } from "@/auth";
 
 const SYSTEM_PROMPT = `You are an expert analyst trained in Imagina's creative disciplines. You evaluate submitted work against the Coherent Creation framework — Imagina's standard for designing, refining and releasing work so it remains coherent under pressure.
 
@@ -151,11 +150,6 @@ Return ONLY a valid JSON object — no markdown, no preamble, no explanation out
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-  }
-
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       { error: "ANTHROPIC_API_KEY is not configured. Add it to .env.local." },
