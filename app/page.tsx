@@ -399,8 +399,10 @@ const ACCEPTED_MIME = "image/jpeg,image/png,image/webp,image/gif,application/pdf
 const ACCEPTED_LABEL = "PDF · Image (JPG, PNG, WebP, GIF) · Plain text";
 
 export default function DesignCheckerPage() {
+  const [mode, setMode] = useState<"upload" | "text">("upload");
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ fileName: string; analysis: AnalysisResult } | null>(null);
@@ -419,14 +421,22 @@ export default function DesignCheckerPage() {
     if (f) pickFile(f);
   }, []);
 
+  const canSubmit = mode === "upload" ? !!file : text.trim().length > 0;
+
   const handleSubmit = async () => {
-    if (!file || loading) return;
+    if (!canSubmit || loading) return;
     setLoading(true);
     setError(null);
     setResult(null);
 
     const form = new FormData();
-    form.append("file", file);
+
+    if (mode === "upload" && file) {
+      form.append("file", file);
+    } else {
+      const blob = new Blob([text], { type: "text/plain" });
+      form.append("file", blob, "text-input.txt");
+    }
 
     try {
       const res = await fetch("/api/design-checker", { method: "POST", body: form });
@@ -445,9 +455,16 @@ export default function DesignCheckerPage() {
 
   const reset = () => {
     setFile(null);
+    setText("");
     setResult(null);
     setError(null);
     if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const switchMode = (next: "upload" | "text") => {
+    setMode(next);
+    setError(null);
+    setResult(null);
   };
 
   return (
@@ -510,11 +527,38 @@ export default function DesignCheckerPage() {
               Design Checker
             </h1>
             <p style={{ margin: 0, fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: "520px" }}>
-              Upload a document, image, or file. Claude analyses it against Imagina&apos;s Coherent Creation framework — Standards of Reality, Diamond Compression, Visual Physics, and External Scrutiny.
+              Upload a file or paste text. Claude analyses it against Imagina&apos;s Coherent Creation framework — Standards of Reality, Diamond Compression, Visual Physics, and External Scrutiny.
             </p>
           </div>
 
+          {/* Mode tabs */}
+          <div style={{ display: "flex", borderBottom: "1px solid var(--bg-border)", marginBottom: "16px" }}>
+            {(["upload", "text"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  borderBottom: mode === m ? "2px solid var(--text-primary)" : "2px solid transparent",
+                  marginBottom: "-1px",
+                  padding: "8px 16px 8px 0",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: mode === m ? "var(--text-primary)" : "var(--text-tertiary)",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  letterSpacing: "0.01em",
+                  transition: "color 150ms ease",
+                }}
+              >
+                {m === "upload" ? "Upload file" : "Paste text"}
+              </button>
+            ))}
+          </div>
+
           {/* Upload zone */}
+          {mode === "upload" && (
           <div
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -523,7 +567,7 @@ export default function DesignCheckerPage() {
             style={{
               border: `1px dashed ${dragging ? "var(--text-secondary)" : "var(--bg-border)"}`,
               borderRadius: "6px",
-              backgroundColor: dragging ? "var(--bg-raised)" : file ? "var(--bg-surface)" : "var(--bg-surface)",
+              backgroundColor: dragging ? "var(--bg-raised)" : "var(--bg-surface)",
               padding: "36px 24px",
               textAlign: "center",
               cursor: "pointer",
@@ -571,6 +615,35 @@ export default function DesignCheckerPage() {
               </div>
             )}
           </div>
+          )}
+
+          {/* Text input */}
+          {mode === "text" && (
+          <textarea
+            value={text}
+            onChange={(e) => { setText(e.target.value); setError(null); setResult(null); }}
+            placeholder="Paste or type your content here — a document, slide copy, product description, email, name, or anything else you want to run through the framework…"
+            style={{
+              width: "100%",
+              minHeight: "200px",
+              backgroundColor: "var(--bg-surface)",
+              border: "1px solid var(--bg-border)",
+              borderRadius: "6px",
+              padding: "14px",
+              fontSize: "13px",
+              color: "var(--text-primary)",
+              fontFamily: "inherit",
+              lineHeight: 1.6,
+              resize: "vertical",
+              outline: "none",
+              marginBottom: "12px",
+              boxSizing: "border-box",
+              transition: "border-color 150ms ease",
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--text-tertiary)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; }}
+          />
+          )}
 
           {/* Error */}
           {error && (
@@ -592,17 +665,17 @@ export default function DesignCheckerPage() {
           {/* Analyse button */}
           <button
             onClick={handleSubmit}
-            disabled={!file || loading}
+            disabled={!canSubmit || loading}
             style={{
               width: "100%",
               padding: "11px",
-              backgroundColor: file && !loading ? "var(--text-primary)" : "var(--bg-raised)",
-              color: file && !loading ? "var(--bg-base)" : "var(--text-tertiary)",
+              backgroundColor: canSubmit && !loading ? "var(--text-primary)" : "var(--bg-raised)",
+              color: canSubmit && !loading ? "var(--bg-base)" : "var(--text-tertiary)",
               border: "none",
               borderRadius: "4px",
               fontSize: "13px",
               fontWeight: 500,
-              cursor: file && !loading ? "pointer" : "not-allowed",
+              cursor: canSubmit && !loading ? "pointer" : "not-allowed",
               fontFamily: "inherit",
               letterSpacing: "0.02em",
               transition: "background-color 150ms ease, color 150ms ease",
