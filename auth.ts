@@ -7,6 +7,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
       issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+      // The default provider requests the "User.Read" Graph scope and, on
+      // every sign-in, fetches the Entra profile photo from Graph. This app
+      // has no use for it (no avatar UI) — skip the Graph call entirely
+      // rather than just discarding the result.
+      authorization: { params: { scope: "openid profile email" } },
+      profile(profile) {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: null,
+        };
+      },
     }),
   ],
   pages: {
